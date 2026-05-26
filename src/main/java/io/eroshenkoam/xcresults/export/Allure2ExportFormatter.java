@@ -55,6 +55,9 @@ public class Allure2ExportFormatter implements ExportFormatter {
 
     private static final String SUBACTIVITIES = "subactivities";
 
+    private static final String DOCUMENTATION = "documentation";
+    private static final String CONTENT = "content";
+
     private static final String ATTACHMENTS = "attachments";
 
     private static final String NAME = "name";
@@ -98,6 +101,9 @@ public class Allure2ExportFormatter implements ExportFormatter {
             for (JsonNode activity : activities) {
                 parseStep(activity, context);
             }
+        }
+        if (node.has(DOCUMENTATION)) {
+            parseDocumentation(node.get(DOCUMENTATION).get(VALUES), context);
         }
         final Optional<StepResult> topLevelFailure = context.getFailures().values().stream()
                 .filter(this::isTopLevelFailure)
@@ -242,6 +248,23 @@ public class Allure2ExportFormatter implements ExportFormatter {
             }
         }
         context.getCurrent().getSteps().add(step);
+    }
+
+    private void parseDocumentation(final Iterable<JsonNode> docs, final StepContext context) {
+        final Pattern idPattern = Pattern.compile("allure\\.id:(?<id>.*)");
+        for (JsonNode doc : docs) {
+            if (!doc.has(CONTENT)) {
+                continue;
+            }
+            final String text = doc.get(CONTENT).get(VALUE).asText();
+            final Matcher matcher = idPattern.matcher(text);
+            if (matcher.matches()) {
+                final Label label = new Label()
+                        .setName("AS_ID")
+                        .setValue(matcher.group("id"));
+                context.getResult().getLabels().add(label);
+            }
+        }
     }
 
     @SuppressWarnings("PMD.AvoidInstantiatingObjectsInLoops")
