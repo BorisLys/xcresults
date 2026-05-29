@@ -5,6 +5,7 @@ import io.qameta.allure.model.Attachment;
 import io.qameta.allure.model.ExecutableItem;
 import io.qameta.allure.model.Label;
 import io.qameta.allure.model.Link;
+import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.StepResult;
@@ -58,6 +59,12 @@ public class Allure2ExportFormatter implements ExportFormatter {
     private static final String DOCUMENTATION = "documentation";
     private static final String CONTENT = "content";
 
+    private static final String ARGUMENTS = "arguments";
+    private static final String PARAMETER = "parameter";
+    private static final String ARGUMENT_VALUE = "value";
+    private static final String LABEL = "label";
+    private static final String DESCRIPTION = "description";
+
     private static final String ATTACHMENTS = "attachments";
 
     private static final String NAME = "name";
@@ -79,8 +86,11 @@ public class Allure2ExportFormatter implements ExportFormatter {
         }
         if (node.has(IDENTIFIER)) {
             final String identifier = node.get(IDENTIFIER).get(VALUE).asText();
-            result.setHistoryId(getHistoryId(meta, identifier));
+            result.setHistoryId(getHistoryId(meta, identifier, node));
             result.setFullName(identifier);
+        }
+        if (node.has(ARGUMENTS)) {
+            parseArguments(node.get(ARGUMENTS).get(VALUES), result);
         }
         if (node.has(STATUS)) {
             result.setStatus(getTestStatus(node));
@@ -435,9 +445,28 @@ public class Allure2ExportFormatter implements ExportFormatter {
         }
     }
 
-    private String getHistoryId(final ExportMeta meta, final String identifier) {
+    private void parseArguments(final Iterable<JsonNode> arguments, final TestResult result) {
+        for (JsonNode argument : arguments) {
+            if (!argument.has(PARAMETER) || !argument.has(ARGUMENT_VALUE)) {
+                continue;
+            }
+            final String name = argument.get(PARAMETER).get(LABEL).get(VALUE).asText();
+            final String value = argument.get(ARGUMENT_VALUE).get(DESCRIPTION).get(VALUE).asText();
+            result.getParameters().add(new Parameter().setName(name).setValue(value));
+        }
+    }
+
+    private String getHistoryId(final ExportMeta meta, final String identifier, final JsonNode node) {
         final String suite = meta.getLabels().getOrDefault(SUITE, "Default");
-        return String.format("%s/%s", suite, identifier);
+        final StringBuilder historyId = new StringBuilder(String.format("%s/%s", suite, identifier));
+        if (node.has(ARGUMENTS)) {
+            for (JsonNode argument : node.get(ARGUMENTS).get(VALUES)) {
+                if (argument.has(ARGUMENT_VALUE) && argument.get(ARGUMENT_VALUE).has(DESCRIPTION)) {
+                    historyId.append('/').append(argument.get(ARGUMENT_VALUE).get(DESCRIPTION).get(VALUE).asText());
+                }
+            }
+        }
+        return historyId.toString();
     }
 
 }
