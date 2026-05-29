@@ -68,6 +68,7 @@ public class Allure2ExportFormatter implements ExportFormatter {
     private static final String ATTACHMENTS = "attachments";
 
     private static final String NAME = "name";
+    private static final String SUMMARY = "summary";
     private static final String FILENAME = "filename";
     private static final String VALUE = "_value";
     private static final String VALUES = "_values";
@@ -81,7 +82,9 @@ public class Allure2ExportFormatter implements ExportFormatter {
                 .setLabels(new ArrayList<>())
                 .setSteps(new ArrayList<>())
                 .setAttachments(new ArrayList<>());
-        if (node.has(NAME)) {
+        if (node.has(SUMMARY)) {
+            result.setName(node.get(SUMMARY).get(VALUE).asText());
+        } else if (node.has(NAME)) {
             result.setName(node.get(NAME).get(VALUE).asText());
         }
         if (node.has(IDENTIFIER)) {

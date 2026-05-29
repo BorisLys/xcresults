@@ -51,6 +51,7 @@ public class ExportProcessor {
     private static final String SUMMARY_REF = "summaryRef";
 
     private static final String SUITE = "suite";
+    private static final String SUMMARY = "summary";
 
     private static final String ID = "id";
     private static final String TYPE = "_type";
@@ -111,8 +112,11 @@ public class ExportProcessor {
                     final ExportMeta testMeta = getTestMeta(meta, testableSummary);
                     if (testableSummary.has(TESTS) && testableSummary.get(TESTS).has(VALUES)) {
                         for (JsonNode test : testableSummary.get(TESTS).get(VALUES)) {
+                            final ExportMeta groupMeta = test.has(SUMMARY)
+                                    ? getGroupMeta(testMeta, test)
+                                    : testMeta;
                             getTestSummaries(test).forEach(testSummary -> {
-                                testSummaries.put(testSummary, testMeta);
+                                testSummaries.put(testSummary, groupMeta);
                             });
                         }
                     } else {
@@ -172,6 +176,14 @@ public class ExportProcessor {
         meta.getLabels().forEach(exportMeta::label);
         exportMeta.label(SUITE, testableSummary.get(TARGET_NAME).get(VALUE).asText());
         return exportMeta;
+    }
+
+    private ExportMeta getGroupMeta(final ExportMeta baseMeta, final JsonNode group) {
+        final ExportMeta meta = new ExportMeta();
+        meta.setStart(baseMeta.getStart());
+        baseMeta.getLabels().forEach(meta::label);
+        meta.label(SUITE, group.get(SUMMARY).get(VALUE).asText());
+        return meta;
     }
 
     private Map<String, List<String>> getAttachmentSources(final ExecutableItem executableItem) {
