@@ -61,6 +61,8 @@ public class ExportProcessor {
     private static final String DISPLAY_NAME = "displayName";
     private static final String TARGET_NAME = "targetName";
     private static final String GROUP_NAME = "name";
+    private static final String DOCUMENTATION = "documentation";
+    private static final String CONTENT = "content";
 
     private static final String TEST_REF = "testsRef";
 
@@ -185,6 +187,13 @@ public class ExportProcessor {
             meta.label(SUITE, group.get(SUMMARY).get(VALUE).asText());
         } else if (group.has(SUBTESTS) && group.has(GROUP_NAME)) {
             meta.label(SUITE, group.get(GROUP_NAME).get(VALUE).asText());
+        }
+        if (group.has(DOCUMENTATION)) {
+            for (JsonNode doc : group.get(DOCUMENTATION).get(VALUES)) {
+                if (doc.has(CONTENT)) {
+                    meta.getSuiteDocs().add(doc.get(CONTENT).get(VALUE).asText());
+                }
+            }
         }
         return meta;
     }

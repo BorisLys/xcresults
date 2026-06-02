@@ -115,6 +115,11 @@ public class Allure2ExportFormatter implements ExportFormatter {
                 context.getFailures().put(key, failure);
             });
         }
+        for (final String directive : meta.getSuiteDocs()) {
+            for (final String line : directive.split("\\R")) {
+                parseAllureMarker(line, context);
+            }
+        }
         if (node.has(ACTIVITY_SUMMARIES)) {
             final Iterable<JsonNode> activities = node.get(ACTIVITY_SUMMARIES).get(VALUES);
             for (JsonNode activity : activities) {
