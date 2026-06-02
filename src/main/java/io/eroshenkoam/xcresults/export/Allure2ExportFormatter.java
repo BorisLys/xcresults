@@ -75,6 +75,12 @@ public class Allure2ExportFormatter implements ExportFormatter {
 
     private static final String SUITE = "suite";
 
+    private static final Pattern ID_PATTERN = Pattern.compile("allure\\.id:(?<id>.*)");
+    private static final Pattern NAME_PATTERN = Pattern.compile("allure\\.name:(?<name>.*)");
+    private static final Pattern DESCRIPTION_PATTERN = Pattern.compile("allure\\.description:(?<description>.*)");
+    private static final Pattern LABEL_PATTERN = Pattern.compile("allure\\.label\\.(?<name>.*?):(?<value>.*)");
+    private static final Pattern LINK_PATTERN = Pattern.compile("allure\\.link\\.(?<name>.*?)(|\\[(?<type>.*)]):(?<url>.*)");
+
     @Override
     public TestResult format(final ExportMeta meta, final JsonNode node) {
         final TestResult result = new TestResult()
@@ -82,7 +88,7 @@ public class Allure2ExportFormatter implements ExportFormatter {
                 .setLabels(new ArrayList<>())
                 .setSteps(new ArrayList<>())
                 .setAttachments(new ArrayList<>());
-        if (node.has(SUMMARY)) {
+        if (node.has(SUMMARY) && !node.get(SUMMARY).get(VALUE).asText().isBlank()) {
             result.setName(node.get(SUMMARY).get(VALUE).asText());
         } else if (node.has(NAME)) {
             result.setName(node.get(NAME).get(VALUE).asText());
@@ -158,44 +164,7 @@ public class Allure2ExportFormatter implements ExportFormatter {
         }
         final String activityTitle = title.get();
 
-        final Matcher idMatcher = Pattern.compile("allure\\.id:(?<id>.*)")
-                .matcher(activityTitle);
-        if (idMatcher.matches()) {
-            final Label label = new Label()
-                    .setName("AS_ID")
-                    .setValue(idMatcher.group("id"));
-            context.getResult().getLabels().add(label);
-            return;
-        }
-        final Matcher nameMatcher = Pattern.compile("allure\\.name:(?<name>.*)")
-                .matcher(activityTitle);
-        if (nameMatcher.matches()) {
-            context.getResult().setName(nameMatcher.group("name"));
-            return;
-        }
-        final Matcher descriptionMatcher = Pattern.compile("allure\\.description:(?<description>.*)")
-                .matcher(activityTitle);
-        if (descriptionMatcher.matches()) {
-            context.getResult().setDescription(descriptionMatcher.group("description"));
-            return;
-        }
-        final Matcher labelMatcher = Pattern.compile("allure\\.label\\.(?<name>.*?):(?<value>.*)")
-                .matcher(activityTitle);
-        if (labelMatcher.matches()) {
-            final Label label = new Label()
-                    .setName(labelMatcher.group("name"))
-                    .setValue(labelMatcher.group("value").trim());
-            context.getResult().getLabels().add(label);
-            return;
-        }
-        final Matcher linkMatcher = Pattern.compile("allure\\.link\\.(?<name>.*?)(|\\[(?<type>.*)]):(?<url>.*)")
-                .matcher(activityTitle);
-        if (linkMatcher.matches()) {
-            final Link link = new Link()
-                    .setName(linkMatcher.group("name"))
-                    .setType(linkMatcher.group("type"))
-                    .setUrl(linkMatcher.group("url").trim());
-            context.getResult().getLinks().add(link);
+        if (parseAllureMarker(activityTitle, context)) {
             return;
         }
 
@@ -264,20 +233,54 @@ public class Allure2ExportFormatter implements ExportFormatter {
     }
 
     private void parseDocumentation(final Iterable<JsonNode> docs, final StepContext context) {
-        final Pattern idPattern = Pattern.compile("allure\\.id:(?<id>.*)");
         for (JsonNode doc : docs) {
             if (!doc.has(CONTENT)) {
                 continue;
             }
             final String text = doc.get(CONTENT).get(VALUE).asText();
-            final Matcher matcher = idPattern.matcher(text);
-            if (matcher.matches()) {
-                final Label label = new Label()
-                        .setName("AS_ID")
-                        .setValue(matcher.group("id"));
-                context.getResult().getLabels().add(label);
+            for (final String line : text.split("\\R")) {
+                parseAllureMarker(line, context);
             }
         }
+    }
+
+    private boolean parseAllureMarker(final String text, final StepContext context) {
+        final Matcher idMatcher = ID_PATTERN.matcher(text);
+        if (idMatcher.matches()) {
+            final Label label = new Label()
+                    .setName("AS_ID")
+                    .setValue(idMatcher.group("id"));
+            context.getResult().getLabels().add(label);
+            return true;
+        }
+        final Matcher nameMatcher = NAME_PATTERN.matcher(text);
+        if (nameMatcher.matches()) {
+            context.getResult().setName(nameMatcher.group("name"));
+            return true;
+        }
+        final Matcher descriptionMatcher = DESCRIPTION_PATTERN.matcher(text);
+        if (descriptionMatcher.matches()) {
+            context.getResult().setDescription(descriptionMatcher.group("description"));
+            return true;
+        }
+        final Matcher labelMatcher = LABEL_PATTERN.matcher(text);
+        if (labelMatcher.matches()) {
+            final Label label = new Label()
+                    .setName(labelMatcher.group("name"))
+                    .setValue(labelMatcher.group("value").trim());
+            context.getResult().getLabels().add(label);
+            return true;
+        }
+        final Matcher linkMatcher = LINK_PATTERN.matcher(text);
+        if (linkMatcher.matches()) {
+            final Link link = new Link()
+                    .setName(linkMatcher.group("name"))
+                    .setType(linkMatcher.group("type"))
+                    .setUrl(linkMatcher.group("url").trim());
+            context.getResult().getLinks().add(link);
+            return true;
+        }
+        return false;
     }
 
     @SuppressWarnings("PMD.AvoidInstantiatingObjectsInLoops")

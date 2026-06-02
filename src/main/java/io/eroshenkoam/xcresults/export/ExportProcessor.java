@@ -60,6 +60,7 @@ public class ExportProcessor {
     private static final String VALUES = "_values";
     private static final String DISPLAY_NAME = "displayName";
     private static final String TARGET_NAME = "targetName";
+    private static final String GROUP_NAME = "name";
 
     private static final String TEST_REF = "testsRef";
 
@@ -112,9 +113,7 @@ public class ExportProcessor {
                     final ExportMeta testMeta = getTestMeta(meta, testableSummary);
                     if (testableSummary.has(TESTS) && testableSummary.get(TESTS).has(VALUES)) {
                         for (JsonNode test : testableSummary.get(TESTS).get(VALUES)) {
-                            final ExportMeta groupMeta = test.has(SUMMARY)
-                                    ? getGroupMeta(testMeta, test)
-                                    : testMeta;
+                            final ExportMeta groupMeta = getGroupMeta(testMeta, test);
                             getTestSummaries(test).forEach(testSummary -> {
                                 testSummaries.put(testSummary, groupMeta);
                             });
@@ -182,7 +181,11 @@ public class ExportProcessor {
         final ExportMeta meta = new ExportMeta();
         meta.setStart(baseMeta.getStart());
         baseMeta.getLabels().forEach(meta::label);
-        meta.label(SUITE, group.get(SUMMARY).get(VALUE).asText());
+        if (group.has(SUMMARY)) {
+            meta.label(SUITE, group.get(SUMMARY).get(VALUE).asText());
+        } else if (group.has(SUBTESTS) && group.has(GROUP_NAME)) {
+            meta.label(SUITE, group.get(GROUP_NAME).get(VALUE).asText());
+        }
         return meta;
     }
 
